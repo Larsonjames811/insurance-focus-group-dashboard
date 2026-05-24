@@ -35,6 +35,36 @@
   h1 { margin: 0 0 4px; font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
   .subtitle { color: var(--text-2); font-size: 14px; }
 
+  /* ----- Mode toggle ----- */
+  .mode-toggle {
+    display: inline-flex;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px;
+    margin-top: 14px;
+    user-select: none;
+  }
+  .mode-tab {
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all 0.15s;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+  }
+  .mode-tab.active {
+    background: var(--accent);
+    color: white;
+  }
+  .mode-tab:not(.active):hover {
+    color: var(--text);
+  }
+
   /* ----- Settings bar ----- */
   .settings {
     background: var(--bg-2);
@@ -443,7 +473,11 @@
 
   <header>
     <h1>Focus Group — Insurance Wedge</h1>
-    <div class="subtitle">8 synthetic insurance agency principals review your copy. ~75 seconds per run.</div>
+    <div class="subtitle" id="mode-subtitle">8 synthetic insurance agency principals review your copy. ~75 seconds per run.</div>
+    <div class="mode-toggle" role="tablist">
+      <button class="mode-tab active" data-mode="letter" type="button">Handwritten Letter</button>
+      <button class="mode-tab" data-mode="landing" type="button">Landing Page</button>
+    </div>
   </header>
 
   <!-- Settings -->
@@ -564,7 +598,41 @@
 </div>
 
 <script>
-const DEFAULT_WEBHOOK = 'https://n8n.aventra-ai.com/webhook/focus-group-insurance';
+const MODES = {
+  letter: {
+    label: 'Handwritten Letter',
+    subtitle: '8 synthetic insurance principals review your handwritten letter. They imagine receiving real ink on real paper and decide whether to scan the QR code.',
+    defaultWebhook: 'https://n8n.aventra-ai.com/webhook/focus-group-insurance',
+    inputLabel: 'Letter copy to test',
+    inputPlaceholder: 'Paste your handwritten letter copy here. Keep it short — 75–150 words.',
+    runButton: 'Run letter focus group',
+    storageKeys: {
+      webhook: 'fg_letter_webhook',
+      copy: 'fg_letter_copy',
+      channel: 'fg_letter_channel',
+      nextStep: 'fg_letter_next_step',
+      lastRun: 'fg_letter_last_run',
+    },
+  },
+  landing: {
+    label: 'Landing Page',
+    subtitle: '8 synthetic insurance principals review your mobile landing page after scanning the QR. They decide whether to book the 20-minute fit call.',
+    defaultWebhook: 'https://n8n.aventra-ai.com/webhook/focus-group-landing-page',
+    inputLabel: 'Landing page copy to test',
+    inputPlaceholder: 'Paste your full landing page copy — hero, body, CTA, P.S. — exactly as a mobile reader would scroll through it. Use section labels like [H1], [Subhead], [Guarantee], [CTA] to help the personas visualize the page structure.',
+    runButton: 'Run landing page focus group',
+    storageKeys: {
+      webhook: 'fg_landing_webhook',
+      copy: 'fg_landing_copy',
+      channel: 'fg_landing_channel',
+      nextStep: 'fg_landing_next_step',
+      lastRun: 'fg_landing_last_run',
+    },
+  },
+};
+
+let currentMode = localStorage.getItem('fg_mode') || 'letter';
+if (!MODES[currentMode]) currentMode = 'letter';
 
 const els = {
   webhookUrl: document.getElementById('webhook-url'),
@@ -592,16 +660,55 @@ const els = {
   downloadBtn: document.getElementById('download-btn'),
 };
 
-// ----- Load settings + last run from localStorage -----
-els.webhookUrl.value = localStorage.getItem('fg_webhook') || DEFAULT_WEBHOOK;
-els.copy.value = localStorage.getItem('fg_copy') || '';
-els.channel.value = localStorage.getItem('fg_channel') || '';
-els.nextStep.value = localStorage.getItem('fg_next_step') || '';
+// ----- Mode management -----
+function loadMode(mode) {
+  const cfg = MODES[mode];
+  currentMode = mode;
+  localStorage.setItem('fg_mode', mode);
 
-els.webhookUrl.addEventListener('input', () => localStorage.setItem('fg_webhook', els.webhookUrl.value.trim()));
-els.copy.addEventListener('input', () => localStorage.setItem('fg_copy', els.copy.value));
-els.channel.addEventListener('input', () => localStorage.setItem('fg_channel', els.channel.value));
-els.nextStep.addEventListener('input', () => localStorage.setItem('fg_next_step', els.nextStep.value));
+  // Update UI labels/placeholders
+  document.getElementById('mode-subtitle').textContent = cfg.subtitle;
+  document.querySelector('label[for="copy"]').textContent = cfg.inputLabel;
+  els.copy.placeholder = cfg.inputPlaceholder;
+  els.runBtn.textContent = cfg.runButton;
+
+  // Load this mode's saved values
+  els.webhookUrl.value = localStorage.getItem(cfg.storageKeys.webhook) || cfg.defaultWebhook;
+  els.copy.value = localStorage.getItem(cfg.storageKeys.copy) || '';
+  els.channel.value = localStorage.getItem(cfg.storageKeys.channel) || '';
+  els.nextStep.value = localStorage.getItem(cfg.storageKeys.nextStep) || '';
+
+  // Update toggle button active state
+  document.querySelectorAll('.mode-tab').forEach((b) => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+
+  // Clear any visible results — they belong to the other mode
+  hideResults();
+  hideError();
+}
+
+// Hook up the mode toggle buttons
+document.querySelectorAll('.mode-tab').forEach((b) => {
+  b.addEventListener('click', () => loadMode(b.dataset.mode));
+});
+
+// Save input changes against the CURRENT mode's storage keys
+els.webhookUrl.addEventListener('input', () =>
+  localStorage.setItem(MODES[currentMode].storageKeys.webhook, els.webhookUrl.value.trim())
+);
+els.copy.addEventListener('input', () =>
+  localStorage.setItem(MODES[currentMode].storageKeys.copy, els.copy.value)
+);
+els.channel.addEventListener('input', () =>
+  localStorage.setItem(MODES[currentMode].storageKeys.channel, els.channel.value)
+);
+els.nextStep.addEventListener('input', () =>
+  localStorage.setItem(MODES[currentMode].storageKeys.nextStep, els.nextStep.value)
+);
+
+// Initial mode load
+loadMode(currentMode);
 
 // ----- Run handler -----
 els.runBtn.addEventListener('click', async () => {
@@ -610,7 +717,7 @@ els.runBtn.addEventListener('click', async () => {
     showError('Paste some copy first.');
     return;
   }
-  const webhookUrl = (els.webhookUrl.value || DEFAULT_WEBHOOK).trim();
+  const webhookUrl = (els.webhookUrl.value || MODES[currentMode].defaultWebhook).trim();
   if (!webhookUrl.startsWith('http')) {
     showError('Webhook URL looks invalid. Open ⚙ settings.');
     return;
@@ -638,7 +745,7 @@ els.runBtn.addEventListener('click', async () => {
       throw new Error(`Webhook returned ${res.status}: ${errText.slice(0, 500)}`);
     }
     const data = await res.json();
-    localStorage.setItem('fg_last_run', JSON.stringify({ data, timestamp: Date.now() }));
+    localStorage.setItem(MODES[currentMode].storageKeys.lastRun, JSON.stringify({ data, timestamp: Date.now() }));
     renderResults(data);
   } catch (err) {
     showError(`Failed to run focus group: ${err.message}`);
@@ -650,9 +757,9 @@ els.runBtn.addEventListener('click', async () => {
 });
 
 els.loadLastBtn.addEventListener('click', () => {
-  const stored = localStorage.getItem('fg_last_run');
+  const stored = localStorage.getItem(MODES[currentMode].storageKeys.lastRun);
   if (!stored) {
-    showError('No previous run saved.');
+    showError(`No previous ${MODES[currentMode].label.toLowerCase()} run saved.`);
     return;
   }
   const { data } = JSON.parse(stored);
