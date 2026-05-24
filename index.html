@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Focus Group Dashboard — Insurance</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --bg-2: #1a2028;
+    --bg-3: #232b36;
+    --border: #2d3743;
+    --text: #e6edf3;
+    --text-2: #9aa6b2;
+    --text-3: #6b7785;
+    --accent: #d9742b;
+    --accent-2: #a8551c;
+    --green: #3ea66b;
+    --red: #d65a5a;
+    --yellow: #d9a93e;
+    --blue: #5a8fd6;
+    --radius: 8px;
+    --mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px 80px; }
+  header { margin-bottom: 32px; }
+  h1 { margin: 0 0 4px; font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
+  .subtitle { color: var(--text-2); font-size: 14px; }
+
+  /* ----- Settings bar ----- */
+  .settings {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 24px;
+    font-size: 13px;
+  }
+  .settings details summary {
+    cursor: pointer;
+    color: var(--text-2);
+    user-select: none;
+  }
+  .settings details[open] summary { margin-bottom: 12px; }
+  .settings label { display: block; margin-bottom: 8px; color: var(--text-2); font-size: 12px; }
+  .settings input[type="text"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  /* ----- Input area ----- */
+  .input-section {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .input-section label {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-2);
+    margin-bottom: 8px;
+  }
+  textarea, input.field {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 13px;
+    resize: vertical;
+  }
+  textarea { min-height: 200px; }
+  textarea:focus, input.field:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .field-group { margin-bottom: 16px; }
+  .field-group details summary {
+    cursor: pointer;
+    color: var(--text-2);
+    font-size: 12px;
+    user-select: none;
+    padding: 4px 0;
+  }
+  .field-group details[open] summary { margin-bottom: 8px; }
+
+  .run-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 8px;
+  }
+  button.primary {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  button.primary:hover:not(:disabled) { background: var(--accent-2); }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ----- Loading state ----- */
+  .loading {
+    display: none;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  .loading.active { display: block; }
+  .spinner {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-step {
+    color: var(--text-2);
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  /* ----- Summary ----- */
+  .summary {
+    display: none;
+    background: linear-gradient(180deg, var(--bg-2), var(--bg-3));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+  .summary.active { display: block; }
+  .summary h2 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+  .summary-stats {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .stat-value { font-size: 24px; font-weight: 600; }
+  .stat-label { font-size: 12px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat.positive .stat-value { color: var(--green); }
+  .stat.negative .stat-value { color: var(--red); }
+
+  /* ----- Section heading ----- */
+  .section-heading {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-2);
+    margin: 32px 0 12px;
+  }
+
+  /* ----- Persona cards ----- */
+  .persona-list { display: none; flex-direction: column; gap: 8px; }
+  .persona-list.active { display: flex; }
+  .persona {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .persona summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    user-select: none;
+  }
+  .persona summary::-webkit-details-marker { display: none; }
+  .persona summary::before {
+    content: '▸';
+    color: var(--text-3);
+    transition: transform 0.15s;
+    font-size: 12px;
+  }
+  .persona[open] summary::before { transform: rotate(90deg); }
+  .persona-name {
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .persona-meta {
+    color: var(--text-2);
+    font-size: 12px;
+    margin-left: 8px;
+  }
+  .persona-spacer { flex: 1; }
+  .vote {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .vote-YES { background: rgba(62, 166, 107, 0.15); color: var(--green); }
+  .vote-NO { background: rgba(214, 90, 90, 0.15); color: var(--red); }
+  .vote-UNKNOWN { background: rgba(155, 166, 178, 0.15); color: var(--text-2); }
+  .role-tag {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .role-target { background: rgba(90, 143, 214, 0.15); color: var(--blue); }
+  .role-borderline { background: rgba(217, 169, 62, 0.15); color: var(--yellow); }
+  .role-filter { background: rgba(155, 166, 178, 0.15); color: var(--text-2); }
+  .persona-body {
+    padding: 0 18px 18px;
+    border-top: 1px solid var(--border);
+  }
+  .persona-body-inner {
+    padding-top: 14px;
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+  }
+  .persona-body-inner h3 {
+    margin: 18px 0 6px;
+    font-size: 13px;
+    color: var(--accent);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  /* ----- Big output cards ----- */
+  .output-card {
+    display: none;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .output-card.active { display: block; }
+  .output-card summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    user-select: none;
+    font-weight: 600;
+  }
+  .output-card summary::-webkit-details-marker { display: none; }
+  .output-card summary::before {
+    content: '▸';
+    color: var(--text-3);
+    transition: transform 0.15s;
+    font-size: 12px;
+  }
+  .output-card[open] summary::before { transform: rotate(90deg); }
+  .output-body {
+    padding: 0 20px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .output-text {
+    padding-top: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    color: var(--text);
+  }
+  .copy-btn {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    padding: 6px 12px;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { background: var(--border); color: var(--text); }
+  .copy-btn.copied { background: var(--green); color: white; border-color: var(--green); }
+
+  /* ----- Error state ----- */
+  .error {
+    display: none;
+    background: rgba(214, 90, 90, 0.1);
+    border: 1px solid rgba(214, 90, 90, 0.3);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    color: var(--red);
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+  .error.active { display: block; }
+
+  /* ----- History ----- */
+  .history-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    padding: 8px 14px;
+    font-size: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .history-btn:hover { color: var(--text); border-color: var(--text-3); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Focus Group — Insurance Wedge</h1>
+    <div class="subtitle">8 synthetic insurance agency principals review your copy. ~75 seconds per run.</div>
+  </header>
+
+  <!-- Settings -->
+  <div class="settings">
+    <details>
+      <summary>⚙ Webhook settings</summary>
+      <label for="webhook-url">n8n Webhook URL</label>
+      <input type="text" id="webhook-url" placeholder="https://n8n.aventra-ai.com/webhook/focus-group-insurance" />
+      <div style="color: var(--text-3); font-size: 11px; margin-top: 6px;">
+        Saved locally. Must point to your activated workflow's production webhook. Test URL also works for one-shot tests.
+      </div>
+    </details>
+  </div>
+
+  <!-- Input -->
+  <div class="input-section">
+    <label for="copy">Copy to test</label>
+    <textarea id="copy" placeholder="Paste your handwritten letter or landing page copy here…"></textarea>
+
+    <div class="field-group" style="margin-top: 16px;">
+      <details>
+        <summary>Optional — channel description &amp; next step (sensible defaults if blank)</summary>
+        <div style="margin-top: 8px;">
+          <label for="channel" style="font-size: 12px; color: var(--text-2);">Channel description</label>
+          <textarea id="channel" style="min-height: 80px;" placeholder="e.g., handwritten letter mailed to the agency principal by name with a QR code, step 1 of a 4-step funnel…"></textarea>
+        </div>
+        <div style="margin-top: 12px;">
+          <label for="next-step" style="font-size: 12px; color: var(--text-2);">Next step</label>
+          <input type="text" id="next-step" class="field" placeholder="e.g., scan the QR code" />
+        </div>
+      </details>
+    </div>
+
+    <div class="run-row">
+      <button class="primary" id="run-btn">Run focus group</button>
+      <button class="history-btn" id="load-last-btn">Load last run</button>
+      <span style="color: var(--text-3); font-size: 12px;">~75 sec • ~$0.12 per run</span>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div style="font-size: 14px;">Running focus group…</div>
+    <div class="loading-step" id="loading-step">Sending to n8n webhook</div>
+  </div>
+
+  <!-- Error -->
+  <div class="error" id="error"></div>
+
+  <!-- Summary -->
+  <div class="summary" id="summary">
+    <h2>Panel summary</h2>
+    <div class="summary-stats">
+      <div class="stat positive">
+        <div class="stat-value"><span id="stat-target-yes">0</span>/<span id="stat-target-total">5</span></div>
+        <div class="stat-label">Target buyers said YES</div>
+      </div>
+      <div class="stat positive">
+        <div class="stat-value"><span id="stat-filter-no">0</span>/<span id="stat-filter-total">2</span></div>
+        <div class="stat-label">Filters said NO (correctly)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="stat-borderline">—</div>
+        <div class="stat-label">Borderline (Melissa)</div>
+      </div>
+    </div>
+    <div id="summary-verdict" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 13px;"></div>
+  </div>
+
+  <!-- Persona panel feedback -->
+  <div class="section-heading" id="panel-heading" style="display: none;">Panel feedback</div>
+  <div class="persona-list" id="persona-list"></div>
+
+  <!-- Copywriter -->
+  <div class="section-heading" id="copywriter-heading" style="display: none;">Copywriter synthesis + 3 variations</div>
+  <details class="output-card" id="copywriter-card">
+    <summary>
+      <span>Variations &amp; team-email synthesis</span>
+      <span style="flex:1"></span>
+      <button class="copy-btn" data-copy-target="copywriter-text">Copy</button>
+    </summary>
+    <div class="output-body">
+      <div class="output-text" id="copywriter-text"></div>
+    </div>
+  </details>
+
+  <!-- Prediction -->
+  <div class="section-heading" id="prediction-heading" style="display: none;">Prediction engine</div>
+  <details class="output-card" id="prediction-card">
+    <summary>
+      <span>Scoring matrix + winner</span>
+      <span style="flex:1"></span>
+      <button class="copy-btn" data-copy-target="prediction-text">Copy</button>
+    </summary>
+    <div class="output-body">
+      <div class="output-text" id="prediction-text"></div>
+    </div>
+  </details>
+
+  <!-- Full markdown report -->
+  <div class="section-heading" id="report-heading" style="display: none;">Full markdown report</div>
+  <details class="output-card" id="report-card">
+    <summary>
+      <span>Everything in one file (for download / archiving)</span>
+      <span style="flex:1"></span>
+      <button class="copy-btn" data-copy-target="report-text">Copy</button>
+      <button class="copy-btn" id="download-btn">Download .md</button>
+    </summary>
+    <div class="output-body">
+      <div class="output-text" id="report-text" style="font-size: 11px; max-height: 600px; overflow-y: auto;"></div>
+    </div>
+  </details>
+
+</div>
+
+<script>
+const DEFAULT_WEBHOOK = 'https://n8n.aventra-ai.com/webhook/focus-group-insurance';
+
+const els = {
+  webhookUrl: document.getElementById('webhook-url'),
+  copy: document.getElementById('copy'),
+  channel: document.getElementById('channel'),
+  nextStep: document.getElementById('next-step'),
+  runBtn: document.getElementById('run-btn'),
+  loadLastBtn: document.getElementById('load-last-btn'),
+  loading: document.getElementById('loading'),
+  loadingStep: document.getElementById('loading-step'),
+  error: document.getElementById('error'),
+  summary: document.getElementById('summary'),
+  panelHeading: document.getElementById('panel-heading'),
+  personaList: document.getElementById('persona-list'),
+  copywriterHeading: document.getElementById('copywriter-heading'),
+  copywriterCard: document.getElementById('copywriter-card'),
+  copywriterText: document.getElementById('copywriter-text'),
+  predictionHeading: document.getElementById('prediction-heading'),
+  predictionCard: document.getElementById('prediction-card'),
+  predictionText: document.getElementById('prediction-text'),
+  reportHeading: document.getElementById('report-heading'),
+  reportCard: document.getElementById('report-card'),
+  reportText: document.getElementById('report-text'),
+  downloadBtn: document.getElementById('download-btn'),
+};
+
+// ----- Load settings + last run from localStorage -----
+els.webhookUrl.value = localStorage.getItem('fg_webhook') || DEFAULT_WEBHOOK;
+els.copy.value = localStorage.getItem('fg_copy') || '';
+els.channel.value = localStorage.getItem('fg_channel') || '';
+els.nextStep.value = localStorage.getItem('fg_next_step') || '';
+
+els.webhookUrl.addEventListener('input', () => localStorage.setItem('fg_webhook', els.webhookUrl.value.trim()));
+els.copy.addEventListener('input', () => localStorage.setItem('fg_copy', els.copy.value));
+els.channel.addEventListener('input', () => localStorage.setItem('fg_channel', els.channel.value));
+els.nextStep.addEventListener('input', () => localStorage.setItem('fg_next_step', els.nextStep.value));
+
+// ----- Run handler -----
+els.runBtn.addEventListener('click', async () => {
+  const copy = els.copy.value.trim();
+  if (!copy) {
+    showError('Paste some copy first.');
+    return;
+  }
+  const webhookUrl = (els.webhookUrl.value || DEFAULT_WEBHOOK).trim();
+  if (!webhookUrl.startsWith('http')) {
+    showError('Webhook URL looks invalid. Open ⚙ settings.');
+    return;
+  }
+
+  hideError();
+  hideResults();
+  els.loading.classList.add('active');
+  els.runBtn.disabled = true;
+
+  const body = { copy_to_review: copy };
+  if (els.channel.value.trim()) body.channel_type = els.channel.value.trim();
+  if (els.nextStep.value.trim()) body.next_step = els.nextStep.value.trim();
+
+  const progressTimer = startLoadingProgress();
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '(no body)');
+      throw new Error(`Webhook returned ${res.status}: ${errText.slice(0, 500)}`);
+    }
+    const data = await res.json();
+    localStorage.setItem('fg_last_run', JSON.stringify({ data, timestamp: Date.now() }));
+    renderResults(data);
+  } catch (err) {
+    showError(`Failed to run focus group: ${err.message}`);
+  } finally {
+    clearInterval(progressTimer);
+    els.loading.classList.remove('active');
+    els.runBtn.disabled = false;
+  }
+});
+
+els.loadLastBtn.addEventListener('click', () => {
+  const stored = localStorage.getItem('fg_last_run');
+  if (!stored) {
+    showError('No previous run saved.');
+    return;
+  }
+  const { data } = JSON.parse(stored);
+  hideError();
+  renderResults(data);
+});
+
+// ----- Loading messages -----
+function startLoadingProgress() {
+  const steps = [
+    { at: 0, text: 'Sending to n8n webhook…' },
+    { at: 3, text: 'Personas warming up…' },
+    { at: 6, text: 'Mark, Jessica, Derek reviewing…' },
+    { at: 18, text: 'Michael, Luis, Melissa reviewing…' },
+    { at: 30, text: 'Brenda + Karen (filters) reviewing…' },
+    { at: 42, text: 'Aggregating feedback…' },
+    { at: 48, text: 'Copywriter writing 3 variations…' },
+    { at: 62, text: 'Prediction engine scoring…' },
+    { at: 72, text: 'Almost done…' },
+  ];
+  const start = Date.now();
+  return setInterval(() => {
+    const elapsed = (Date.now() - start) / 1000;
+    const current = steps.filter((s) => s.at <= elapsed).pop();
+    if (current) els.loadingStep.textContent = current.text;
+  }, 500);
+}
+
+// ----- Rendering -----
+function hideResults() {
+  els.summary.classList.remove('active');
+  els.personaList.classList.remove('active');
+  els.panelHeading.style.display = 'none';
+  els.copywriterHeading.style.display = 'none';
+  els.copywriterCard.classList.remove('active');
+  els.predictionHeading.style.display = 'none';
+  els.predictionCard.classList.remove('active');
+  els.reportHeading.style.display = 'none';
+  els.reportCard.classList.remove('active');
+}
+
+function renderResults(data) {
+  if (!data || !data.feedbacks) {
+    showError('Response missing expected fields. Check the workflow output.');
+    return;
+  }
+
+  // Summary
+  const s = data.summary || {};
+  document.getElementById('stat-target-yes').textContent = s.target_yes ?? 0;
+  document.getElementById('stat-target-total').textContent = s.target_total ?? 5;
+  document.getElementById('stat-filter-no').textContent = s.filter_no ?? 0;
+  document.getElementById('stat-filter-total').textContent = s.filter_total ?? 2;
+  document.getElementById('stat-borderline').textContent = s.borderline_vote ?? '—';
+
+  const verdictEl = document.getElementById('summary-verdict');
+  const totalT = s.target_total || 5;
+  const ratio = (s.target_yes || 0) / totalT;
+  let verdict = '';
+  if (ratio >= 0.8) verdict = '✓ Strong run — copy is ready to ship.';
+  else if (ratio >= 0.6) verdict = '◐ Acceptable — read the NOs, iterate once more before shipping.';
+  else verdict = '✗ Weak — copy needs structural rewrite. Read the panel feedback before re-running.';
+  if ((s.filter_no || 0) < (s.filter_total || 2)) {
+    verdict += ' Filter NOT working — at least one filter persona said YES, which means tone/positioning is wrong.';
+  }
+  verdictEl.textContent = verdict;
+  els.summary.classList.add('active');
+
+  // Persona list
+  els.personaList.innerHTML = '';
+  const roleOrder = { target: 0, borderline: 1, filter: 2 };
+  const sorted = [...data.feedbacks].sort((a, b) => {
+    const ar = roleOrder[a.role] ?? 99;
+    const br = roleOrder[b.role] ?? 99;
+    if (ar !== br) return ar - br;
+    return a.displayName.localeCompare(b.displayName);
+  });
+  for (const f of sorted) {
+    const d = document.createElement('details');
+    d.className = 'persona';
+    d.innerHTML = `
+      <summary>
+        <span class="role-tag role-${f.role}">${f.role}</span>
+        <span class="persona-name">${escapeHtml(f.displayName)}</span>
+        <span class="persona-meta">${escapeHtml(f.subtitle || '')}</span>
+        <span class="persona-spacer"></span>
+        <span class="vote vote-${f.vote}">${f.vote}</span>
+      </summary>
+      <div class="persona-body">
+        <div class="persona-body-inner">${formatPersonaText(f.text)}</div>
+      </div>
+    `;
+    els.personaList.appendChild(d);
+  }
+  els.personaList.classList.add('active');
+  els.panelHeading.style.display = 'block';
+
+  // Copywriter
+  els.copywriterText.textContent = data.copywriter_output || '(no copywriter output)';
+  els.copywriterCard.classList.add('active');
+  els.copywriterCard.open = true;
+  els.copywriterHeading.style.display = 'block';
+
+  // Prediction
+  els.predictionText.textContent = data.prediction_output || '(no prediction output)';
+  els.predictionCard.classList.add('active');
+  els.predictionCard.open = true;
+  els.predictionHeading.style.display = 'block';
+
+  // Report (full markdown)
+  els.reportText.textContent = data.report || '(no report)';
+  els.reportCard.classList.add('active');
+  els.reportHeading.style.display = 'block';
+}
+
+function formatPersonaText(text) {
+  if (!text) return '(empty)';
+  // Convert "### N. Heading" lines into <h3>
+  return escapeHtml(text).replace(/^### (.+)$/gm, '<h3>$1</h3>');
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function showError(msg) {
+  els.error.textContent = msg;
+  els.error.classList.add('active');
+}
+function hideError() {
+  els.error.classList.remove('active');
+}
+
+// ----- Copy buttons -----
+document.addEventListener('click', async (e) => {
+  if (e.target.classList.contains('copy-btn') && e.target.dataset.copyTarget) {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = document.getElementById(e.target.dataset.copyTarget);
+    if (!target) return;
+    await navigator.clipboard.writeText(target.textContent || '');
+    e.target.classList.add('copied');
+    const orig = e.target.textContent;
+    e.target.textContent = 'Copied';
+    setTimeout(() => {
+      e.target.classList.remove('copied');
+      e.target.textContent = orig;
+    }, 1500);
+  }
+});
+
+// Download .md
+els.downloadBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const text = els.reportText.textContent;
+  if (!text) return;
+  const blob = new Blob([text], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `focus-group-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
