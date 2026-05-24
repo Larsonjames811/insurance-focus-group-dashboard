@@ -234,6 +234,100 @@
   .vote-YES { background: rgba(62, 166, 107, 0.15); color: var(--green); }
   .vote-NO { background: rgba(214, 90, 90, 0.15); color: var(--red); }
   .vote-UNKNOWN { background: rgba(155, 166, 178, 0.15); color: var(--text-2); }
+
+  /* ----- Scoring visualization ----- */
+  .scoring-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  .variation-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    transition: border-color 0.2s;
+  }
+  .variation-card.winner {
+    border-color: var(--green);
+    background: linear-gradient(180deg, rgba(62, 166, 107, 0.05), var(--bg-2));
+  }
+  .variation-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .variation-name {
+    font-weight: 600;
+    font-size: 15px;
+    flex: 1;
+  }
+  .variation-score {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .variation-card.winner .variation-score { color: var(--green); }
+  .winner-badge {
+    background: var(--green);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 4px 10px;
+    border-radius: 12px;
+  }
+  .confidence-badge {
+    background: rgba(90, 143, 214, 0.15);
+    color: var(--blue);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 12px;
+  }
+  .criterion-row {
+    display: grid;
+    grid-template-columns: 140px 1fr 60px;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 12px;
+  }
+  .criterion-name {
+    color: var(--text-2);
+  }
+  .criterion-bar-track {
+    height: 6px;
+    background: var(--bg);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .criterion-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .criterion-score {
+    font-family: var(--mono);
+    font-weight: 600;
+    color: var(--text);
+    text-align: right;
+  }
+  .winner-reasoning {
+    background: rgba(62, 166, 107, 0.08);
+    border-left: 3px solid var(--green);
+    padding: 14px 16px;
+    border-radius: 4px;
+    margin-top: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+  .winner-reasoning strong { color: var(--green); }
   .role-tag {
     padding: 3px 8px;
     border-radius: 4px;
@@ -437,11 +531,14 @@
     </div>
   </details>
 
-  <!-- Prediction -->
-  <div class="section-heading" id="prediction-heading" style="display: none;">Prediction engine</div>
+  <!-- Prediction — visual scoring -->
+  <div class="section-heading" id="prediction-heading" style="display: none;">Prediction engine — scoring</div>
+  <div id="scoring-viz" style="display: none;"></div>
+
+  <!-- Prediction — raw output -->
   <details class="output-card" id="prediction-card">
     <summary>
-      <span>Scoring matrix + winner</span>
+      <span>Raw scoring matrix + winner reasoning</span>
       <span style="flex:1"></span>
       <button class="copy-btn" data-copy-target="prediction-text">Copy</button>
     </summary>
@@ -488,6 +585,7 @@ const els = {
   predictionHeading: document.getElementById('prediction-heading'),
   predictionCard: document.getElementById('prediction-card'),
   predictionText: document.getElementById('prediction-text'),
+  scoringViz: document.getElementById('scoring-viz'),
   reportHeading: document.getElementById('report-heading'),
   reportCard: document.getElementById('report-card'),
   reportText: document.getElementById('report-text'),
@@ -592,6 +690,7 @@ function hideResults() {
   els.copywriterCard.classList.remove('active');
   els.predictionHeading.style.display = 'none';
   els.predictionCard.classList.remove('active');
+  els.scoringViz.style.display = 'none';
   els.reportHeading.style.display = 'none';
   els.reportCard.classList.remove('active');
 }
@@ -658,11 +757,12 @@ function renderResults(data) {
   els.copywriterCard.open = true;
   els.copywriterHeading.style.display = 'block';
 
-  // Prediction
+  // Prediction — visual + raw
   els.predictionText.textContent = data.prediction_output || '(no prediction output)';
   els.predictionCard.classList.add('active');
-  els.predictionCard.open = true;
+  els.predictionCard.open = false;
   els.predictionHeading.style.display = 'block';
+  renderScoringViz(data.prediction_output || '');
 
   // Report (full markdown)
   els.reportText.textContent = data.report || '(no report)';
@@ -674,6 +774,120 @@ function formatPersonaText(text) {
   if (!text) return '(empty)';
   // Convert "### N. Heading" lines into <h3>
   return escapeHtml(text).replace(/^### (.+)$/gm, '<h3>$1</h3>');
+}
+
+// Parse the markdown prediction output into structured variation scores
+function parsePredictionOutput(md) {
+  if (!md) return null;
+  const variations = [];
+
+  // Split by "## Variation" headers
+  const variationBlocks = md.split(/^## Variation /m).slice(1);
+
+  for (const block of variationBlocks) {
+    // First line is the variation name (e.g., "A — Lead with the Pain")
+    const firstLine = block.split('\n')[0].trim();
+    const name = firstLine;
+
+    // Extract total score — looks like "**TOTAL** | | **7.40 / 10 → 74.0 / 100**"
+    const totalMatch = block.match(/\*\*TOTAL\*\*[^|]*\|[^|]*\|\s*\*\*([\d.]+)\s*\/\s*10[^*]*\*\*/i)
+                    || block.match(/(\d{2,3}(?:\.\d+)?)\s*\/\s*100/);
+    const totalScore = totalMatch ? parseFloat(totalMatch[1]) : null;
+    const totalOutOf100 = totalScore !== null
+      ? (totalScore <= 10 ? totalScore * 10 : totalScore)
+      : null;
+
+    // Extract criterion rows — looks like: | Pain specificity (15%) | 7/10 | 1.05 | notes |
+    const criteria = [];
+    const rowRegex = /\|\s*([^|]+?\(\d+%\))\s*\|\s*(\d+)\/10\s*\|\s*([\d.]+)\s*\|/g;
+    let m;
+    while ((m = rowRegex.exec(block)) !== null) {
+      criteria.push({
+        name: m[1].trim(),
+        score: parseInt(m[2], 10),
+        weighted: parseFloat(m[3]),
+      });
+    }
+
+    // Stop at the winner section if this block contains it
+    const winnerCut = block.indexOf('## WINNER');
+    const cleanBlock = winnerCut > 0 ? block.slice(0, winnerCut) : block;
+
+    variations.push({
+      name,
+      totalScore: totalOutOf100,
+      criteria,
+    });
+  }
+
+  // Winner block
+  const winnerMatch = md.match(/##\s*WINNER:\s*Variation\s+([A-Z])(?:\s*—\s*(.+))?/i);
+  const winnerLetter = winnerMatch ? winnerMatch[1] : null;
+
+  // Confidence
+  const confMatch = md.match(/\*\*Confidence:\s*(\d+)%\*\*/i)
+                 || md.match(/Confidence:\s*(\d+)%/i);
+  const confidence = confMatch ? parseInt(confMatch[1], 10) : null;
+
+  // Winner reasoning (everything between "Why this wins" and next heading)
+  const reasoningMatch = md.match(/\*\*Why this wins:\*\*\s*([\s\S]+?)(?=\n\n\*\*|\n##|$)/i);
+  const reasoning = reasoningMatch ? reasoningMatch[1].trim() : null;
+
+  return {
+    variations,
+    winnerLetter,
+    confidence,
+    reasoning,
+  };
+}
+
+function renderScoringViz(predictionMd) {
+  const parsed = parsePredictionOutput(predictionMd);
+  if (!parsed || !parsed.variations || parsed.variations.length === 0) {
+    els.scoringViz.style.display = 'none';
+    return;
+  }
+
+  els.scoringViz.style.display = 'block';
+  const winnerLetter = parsed.winnerLetter;
+
+  const cardsHtml = parsed.variations.map((v) => {
+    const letterMatch = v.name.match(/^([A-Z])/);
+    const letter = letterMatch ? letterMatch[1] : '';
+    const isWinner = letter === winnerLetter;
+
+    const criteriaHtml = v.criteria.map((c) => {
+      const pct = (c.score / 10) * 100;
+      const color = c.score >= 8 ? 'var(--green)' : c.score >= 6 ? 'var(--yellow)' : 'var(--red)';
+      return `
+        <div class="criterion-row">
+          <div class="criterion-name">${escapeHtml(c.name)}</div>
+          <div class="criterion-bar-track">
+            <div class="criterion-bar-fill" style="width: ${pct}%; background: ${color};"></div>
+          </div>
+          <div class="criterion-score">${c.score}/10</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="variation-card ${isWinner ? 'winner' : ''}">
+        <div class="variation-header">
+          ${isWinner ? '<span class="winner-badge">WINNER</span>' : ''}
+          <span class="variation-name">${escapeHtml(v.name)}</span>
+          ${isWinner && parsed.confidence !== null ? `<span class="confidence-badge">${parsed.confidence}% confidence</span>` : ''}
+          <span class="variation-score">${v.totalScore !== null ? v.totalScore.toFixed(1) : '?'}<span style="font-size: 12px; color: var(--text-3);">/100</span></span>
+        </div>
+        <div>${criteriaHtml}</div>
+      </div>
+    `;
+  }).join('');
+
+  const reasoningHtml = parsed.reasoning
+    ? `<div class="winner-reasoning"><strong>Why this wins:</strong> ${escapeHtml(parsed.reasoning).replace(/\n/g, '<br>')}</div>`
+    : '';
+
+  els.scoringViz.innerHTML = `<div class="scoring-grid">${cardsHtml}</div>${reasoningHtml}`;
 }
 
 function escapeHtml(s) {
