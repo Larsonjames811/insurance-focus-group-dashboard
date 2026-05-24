@@ -265,6 +265,160 @@
   .vote-NO { background: rgba(214, 90, 90, 0.15); color: var(--red); }
   .vote-UNKNOWN { background: rgba(155, 166, 178, 0.15); color: var(--text-2); }
 
+  /* ----- Run summary card (top of results) ----- */
+  .run-summary {
+    display: none;
+    background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+  .run-summary.active { display: block; }
+  .run-summary-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .run-summary-title {
+    font-weight: 600;
+    font-size: 15px;
+    flex: 1;
+  }
+  .run-summary-meta {
+    color: var(--text-3);
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+  .verdict-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .verdict-strong { background: rgba(62, 166, 107, 0.2); color: var(--green); }
+  .verdict-acceptable { background: rgba(217, 169, 62, 0.2); color: var(--yellow); }
+  .verdict-weak { background: rgba(214, 90, 90, 0.2); color: var(--red); }
+  .summary-row {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 12px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .summary-label {
+    color: var(--text-3);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-top: 2px;
+  }
+  .summary-value {
+    color: var(--text);
+  }
+  .summary-input-excerpt {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-2);
+    background: var(--bg);
+    padding: 8px 10px;
+    border-radius: 4px;
+    max-height: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
+  }
+  .summary-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .action-btn {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    font-size: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .action-btn:hover { background: var(--border); }
+  .action-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .action-btn.primary:hover { background: var(--accent-2); }
+  .action-btn.saved { background: var(--green); border-color: var(--green); color: white; }
+
+  /* ----- Run history ----- */
+  .history-panel {
+    display: none;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 24px;
+  }
+  .history-panel.active { display: block; }
+  .history-panel summary {
+    cursor: pointer;
+    color: var(--text-2);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 14px;
+  }
+  .history-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    transition: border-color 0.15s;
+  }
+  .history-item:hover { border-color: var(--accent); }
+  .history-time { font-family: var(--mono); color: var(--text-3); font-size: 11px; min-width: 130px; }
+  .history-mode {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .history-mode-letter { background: rgba(90, 143, 214, 0.15); color: var(--blue); }
+  .history-mode-landing { background: rgba(217, 116, 43, 0.2); color: var(--accent); }
+  .history-summary-text { color: var(--text-2); flex: 1; }
+  .history-tally { font-family: var(--mono); font-size: 11px; color: var(--text); }
+  .history-delete {
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 14px;
+  }
+  .history-delete:hover { color: var(--red); }
+
   /* ----- Scoring visualization ----- */
   .scoring-grid {
     display: flex;
@@ -528,7 +682,16 @@
   <!-- Error -->
   <div class="error" id="error"></div>
 
-  <!-- Summary -->
+  <!-- Run summary card (compact, top) -->
+  <div class="run-summary" id="run-summary"></div>
+
+  <!-- Run history -->
+  <details class="history-panel" id="history-panel">
+    <summary>Recent runs (click to reload)</summary>
+    <div class="history-list" id="history-list"></div>
+  </details>
+
+  <!-- Detailed summary -->
   <div class="summary" id="summary">
     <h2>Panel summary</h2>
     <div class="summary-stats">
@@ -654,6 +817,9 @@ const els = {
   predictionCard: document.getElementById('prediction-card'),
   predictionText: document.getElementById('prediction-text'),
   scoringViz: document.getElementById('scoring-viz'),
+  runSummary: document.getElementById('run-summary'),
+  historyPanel: document.getElementById('history-panel'),
+  historyList: document.getElementById('history-list'),
   reportHeading: document.getElementById('report-heading'),
   reportCard: document.getElementById('report-card'),
   reportText: document.getElementById('report-text'),
@@ -686,6 +852,9 @@ function loadMode(mode) {
   // Clear any visible results — they belong to the other mode
   hideResults();
   hideError();
+
+  // Re-render this mode's history
+  renderHistory();
 }
 
 // Hook up the mode toggle buttons
@@ -709,6 +878,9 @@ els.nextStep.addEventListener('input', () =>
 
 // Initial mode load
 loadMode(currentMode);
+
+// Render history if any saved runs exist for this mode
+renderHistory();
 
 // ----- Run handler -----
 els.runBtn.addEventListener('click', async () => {
@@ -790,6 +962,7 @@ function startLoadingProgress() {
 
 // ----- Rendering -----
 function hideResults() {
+  els.runSummary.classList.remove('active');
   els.summary.classList.remove('active');
   els.personaList.classList.remove('active');
   els.panelHeading.style.display = 'none';
@@ -802,11 +975,293 @@ function hideResults() {
   els.reportCard.classList.remove('active');
 }
 
+// ===== Run history (per-mode, last 10 runs in localStorage) =====
+const HISTORY_KEY_PREFIX = 'fg_history_';
+
+function saveToHistory(mode, data) {
+  const key = HISTORY_KEY_PREFIX + mode;
+  const raw = localStorage.getItem(key);
+  const list = raw ? JSON.parse(raw) : [];
+  const entry = {
+    id: 'run_' + Date.now(),
+    timestamp: data.timestamp || new Date().toISOString(),
+    mode,
+    summary: data.summary || {},
+    inputExcerpt: (data.input?.copy_to_review || '').slice(0, 250),
+    winnerLetter: extractWinnerLetter(data.prediction_output || ''),
+    winnerScore: extractWinnerScore(data.prediction_output || ''),
+    winnerConfidence: extractWinnerConfidence(data.prediction_output || ''),
+    saved: false,
+    data, // full data so we can reload
+  };
+  list.unshift(entry);
+  if (list.length > 10) list.length = 10;
+  localStorage.setItem(key, JSON.stringify(list));
+  renderHistory();
+  return entry;
+}
+
+function getHistory() {
+  const key = HISTORY_KEY_PREFIX + currentMode;
+  const raw = localStorage.getItem(key);
+  return raw ? JSON.parse(raw) : [];
+}
+
+function deleteHistoryItem(id) {
+  const key = HISTORY_KEY_PREFIX + currentMode;
+  const list = getHistory().filter((e) => e.id !== id);
+  localStorage.setItem(key, JSON.stringify(list));
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = getHistory();
+  if (list.length === 0) {
+    els.historyPanel.classList.remove('active');
+    return;
+  }
+  els.historyPanel.classList.add('active');
+  els.historyList.innerHTML = list
+    .map((e) => {
+      const time = new Date(e.timestamp).toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+      const s = e.summary || {};
+      const tally = `${s.target_yes || 0}/${s.target_total || 5} target · ${s.filter_no || 0}/${s.filter_total || 2} filter`;
+      const modeClass = e.mode === 'letter' ? 'history-mode-letter' : 'history-mode-landing';
+      const modeLabel = e.mode === 'letter' ? 'Letter' : 'Landing';
+      return `
+        <div class="history-item" data-id="${e.id}">
+          <span class="history-time">${time}</span>
+          <span class="history-mode ${modeClass}">${modeLabel}</span>
+          <span class="history-summary-text">${escapeHtml(e.inputExcerpt.slice(0, 80))}…</span>
+          <span class="history-tally">${tally}</span>
+          ${e.winnerLetter ? `<span class="history-tally">W:${e.winnerLetter} ${e.winnerScore || ''}</span>` : ''}
+          <button class="history-delete" data-id="${e.id}" title="Delete">×</button>
+        </div>
+      `;
+    })
+    .join('');
+  // Wire up clicks
+  els.historyList.querySelectorAll('.history-item').forEach((it) => {
+    it.addEventListener('click', (e) => {
+      if (e.target.classList.contains('history-delete')) return;
+      const id = it.dataset.id;
+      const entry = getHistory().find((x) => x.id === id);
+      if (entry) {
+        hideError();
+        renderResults(entry.data);
+      }
+    });
+  });
+  els.historyList.querySelectorAll('.history-delete').forEach((b) => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteHistoryItem(b.dataset.id);
+    });
+  });
+}
+
+// ===== Helpers to extract winner info from prediction markdown =====
+function extractWinnerLetter(md) {
+  const m = md.match(/##\s*WINNER:\s*Variation\s+([A-Z])/i);
+  return m ? m[1] : null;
+}
+function extractWinnerScore(md) {
+  // Find the winner letter's total score
+  const winner = extractWinnerLetter(md);
+  if (!winner) return null;
+  const block = md.split(new RegExp(`##\\s*Variation\\s+${winner}\\b`, 'i'))[1];
+  if (!block) return null;
+  const m = block.match(/(\d{2,3}(?:\.\d+)?)\s*\/\s*100/);
+  return m ? m[1] : null;
+}
+function extractWinnerConfidence(md) {
+  const m = md.match(/Confidence:\s*\*?\*?(\d+)%/i);
+  return m ? m[1] : null;
+}
+
+// ===== Compact run-summary card =====
+function renderRunSummary(data) {
+  const s = data.summary || {};
+  const totalT = s.target_total || 5;
+  const totalF = s.filter_total || 2;
+  const yes = s.target_yes || 0;
+  const filterNo = s.filter_no || 0;
+  const ratio = yes / totalT;
+
+  let verdictClass = 'verdict-weak';
+  let verdictText = 'WEAK';
+  if (ratio >= 0.8 && filterNo === totalF) {
+    verdictClass = 'verdict-strong';
+    verdictText = 'STRONG';
+  } else if (ratio >= 0.6) {
+    verdictClass = 'verdict-acceptable';
+    verdictText = 'ACCEPTABLE';
+  }
+  if (filterNo < totalF) {
+    verdictText = 'FILTER FAILURE';
+    verdictClass = 'verdict-acceptable';
+  }
+
+  const winner = extractWinnerLetter(data.prediction_output || '');
+  const score = extractWinnerScore(data.prediction_output || '');
+  const conf = extractWinnerConfidence(data.prediction_output || '');
+
+  // Extract "My take" paragraph as the "why" summary (first 2-3 sentences)
+  const takeMatch = (data.copywriter_output || '').match(/\*\*My take:\*\*\s*([\s\S]+?)(?=\n\n|---)/i);
+  const whyText = takeMatch ? takeMatch[1].trim().slice(0, 400).replace(/\n+/g, ' ') : '';
+
+  const time = new Date(data.timestamp || Date.now()).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+  const inputExcerpt = (data.input?.copy_to_review || '').slice(0, 350);
+
+  els.runSummary.innerHTML = `
+    <div class="run-summary-head">
+      <span class="run-summary-title">Run summary — ${MODES[currentMode].label}</span>
+      <span class="verdict-badge ${verdictClass}">${verdictText}</span>
+      <span class="run-summary-meta">${time}</span>
+    </div>
+    <div class="summary-row">
+      <div class="summary-label">Input</div>
+      <div class="summary-input-excerpt">${escapeHtml(inputExcerpt)}${inputExcerpt.length >= 350 ? '…' : ''}</div>
+    </div>
+    <div class="summary-row">
+      <div class="summary-label">Panel</div>
+      <div class="summary-value">
+        <strong>${yes}/${totalT}</strong> target buyers said YES · <strong>${filterNo}/${totalF}</strong> filters correctly said NO · borderline ${s.borderline_vote || '—'}
+      </div>
+    </div>
+    ${winner ? `
+    <div class="summary-row">
+      <div class="summary-label">Winner</div>
+      <div class="summary-value">Variation <strong>${winner}</strong>${score ? ` · ${score}/100` : ''}${conf ? ` · ${conf}% confidence` : ''}</div>
+    </div>` : ''}
+    ${whyText ? `
+    <div class="summary-row">
+      <div class="summary-label">Why</div>
+      <div class="summary-value" style="font-size: 12px; color: var(--text-2); line-height: 1.6;">${escapeHtml(whyText)}…</div>
+    </div>` : ''}
+    <div class="summary-actions">
+      <button class="action-btn primary" id="save-run-btn">Save run to history</button>
+      <button class="action-btn" id="export-sheet-btn">Export to Google Sheet</button>
+      <button class="action-btn" id="copy-summary-btn">Copy summary</button>
+    </div>
+  `;
+  els.runSummary.classList.add('active');
+
+  // Wire up the action buttons
+  document.getElementById('save-run-btn').addEventListener('click', (e) => {
+    saveToHistory(currentMode, data);
+    e.target.textContent = 'Saved ✓';
+    e.target.classList.add('saved');
+    setTimeout(() => {
+      e.target.textContent = 'Save run to history';
+      e.target.classList.remove('saved');
+    }, 2000);
+  });
+
+  document.getElementById('export-sheet-btn').addEventListener('click', () => {
+    const sheetWebhook = localStorage.getItem('fg_sheet_webhook');
+    if (!sheetWebhook) {
+      const url = prompt(
+        'Paste the n8n webhook URL that appends to your Google Sheet.\n\nLeave blank to skip — you can copy the summary instead.',
+        ''
+      );
+      if (!url) return;
+      localStorage.setItem('fg_sheet_webhook', url.trim());
+    }
+    exportToSheet(data);
+  });
+
+  document.getElementById('copy-summary-btn').addEventListener('click', async (e) => {
+    const text = buildSummaryText(data);
+    await navigator.clipboard.writeText(text);
+    e.target.textContent = 'Copied ✓';
+    setTimeout(() => (e.target.textContent = 'Copy summary'), 1500);
+  });
+}
+
+function buildSummaryText(data) {
+  const s = data.summary || {};
+  const winner = extractWinnerLetter(data.prediction_output || '');
+  const score = extractWinnerScore(data.prediction_output || '');
+  const conf = extractWinnerConfidence(data.prediction_output || '');
+  const time = new Date(data.timestamp || Date.now()).toISOString();
+  return `# Focus Group Run — ${time}
+Mode: ${MODES[currentMode].label}
+
+PANEL: ${s.target_yes || 0}/${s.target_total || 5} targets YES · ${s.filter_no || 0}/${s.filter_total || 2} filters NO · borderline ${s.borderline_vote || '—'}
+WINNER: Variation ${winner || '—'} · ${score || '?'}/100 · ${conf || '?'}% confidence
+
+INPUT:
+${(data.input?.copy_to_review || '').slice(0, 800)}
+
+---
+${(data.copywriter_output || '').slice(0, 1500)}
+`;
+}
+
+async function exportToSheet(data) {
+  const sheetWebhook = localStorage.getItem('fg_sheet_webhook');
+  if (!sheetWebhook) return;
+  const btn = document.getElementById('export-sheet-btn');
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+  try {
+    const payload = {
+      timestamp: data.timestamp || new Date().toISOString(),
+      mode: currentMode,
+      input_copy: data.input?.copy_to_review || '',
+      target_yes: data.summary?.target_yes || 0,
+      target_total: data.summary?.target_total || 5,
+      filter_no: data.summary?.filter_no || 0,
+      filter_total: data.summary?.filter_total || 2,
+      borderline_vote: data.summary?.borderline_vote || '',
+      winner_variation: extractWinnerLetter(data.prediction_output || '') || '',
+      winner_score: extractWinnerScore(data.prediction_output || '') || '',
+      winner_confidence: extractWinnerConfidence(data.prediction_output || '') || '',
+      report: data.report || '',
+    };
+    const res = await fetch(sheetWebhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Webhook returned ' + res.status);
+    btn.textContent = 'Exported ✓';
+    btn.classList.add('saved');
+    setTimeout(() => {
+      btn.textContent = 'Export to Google Sheet';
+      btn.classList.remove('saved');
+      btn.disabled = false;
+    }, 2000);
+  } catch (err) {
+    btn.textContent = 'Export failed';
+    setTimeout(() => {
+      btn.textContent = 'Export to Google Sheet';
+      btn.disabled = false;
+    }, 3000);
+    console.error('Sheet export error:', err);
+  }
+}
+
 function renderResults(data) {
   if (!data || !data.feedbacks) {
     showError('Response missing expected fields. Check the workflow output.');
     return;
   }
+
+  // Render the compact run-summary card at the top
+  renderRunSummary(data);
 
   // Summary
   const s = data.summary || {};
