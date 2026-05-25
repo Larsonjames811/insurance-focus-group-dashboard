@@ -857,9 +857,11 @@ function loadMode(mode) {
   renderHistory();
 }
 
-// Hook up the mode toggle buttons
+// Hook up the mode toggle buttons (safe — these elements always exist)
 document.querySelectorAll('.mode-tab').forEach((b) => {
-  b.addEventListener('click', () => loadMode(b.dataset.mode));
+  b.addEventListener('click', () => {
+    try { loadMode(b.dataset.mode); } catch (e) { console.error('loadMode error:', e); }
+  });
 });
 
 // Save input changes against the CURRENT mode's storage keys
@@ -876,13 +878,7 @@ els.nextStep.addEventListener('input', () =>
   localStorage.setItem(MODES[currentMode].storageKeys.nextStep, els.nextStep.value)
 );
 
-// Initial mode load
-loadMode(currentMode);
-
-// Render history if any saved runs exist for this mode
-renderHistory();
-
-// ----- Run handler -----
+// ----- Run handler — attach BEFORE loadMode so it works even if loadMode throws -----
 els.runBtn.addEventListener('click', async () => {
   const copy = els.copy.value.trim();
   if (!copy) {
@@ -927,6 +923,18 @@ els.runBtn.addEventListener('click', async () => {
     els.runBtn.disabled = false;
   }
 });
+
+// Initial mode load + history render — AFTER all event listeners are attached, so a throw here can't kill them
+try {
+  loadMode(currentMode);
+} catch (e) {
+  console.error('Initial loadMode failed:', e);
+}
+try {
+  renderHistory();
+} catch (e) {
+  console.error('Initial renderHistory failed:', e);
+}
 
 els.loadLastBtn.addEventListener('click', () => {
   const stored = localStorage.getItem(MODES[currentMode].storageKeys.lastRun);
